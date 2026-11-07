@@ -13,8 +13,9 @@ frontend/dist/
 frontend/.env
 frontend/.env.local
 
-# Built SPA (generate on server with: cd frontend && npm ci && npm run build)
-backend/spa/
+# Prefer building SPA on a machine with Node, then deploy backend/spa via git
+# (cPanel often has no npm). Uncomment to stop tracking builds:
+# backend/spa/
 
 # OS / IDE
 .DS_Store
