@@ -327,6 +327,13 @@ class RootView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request):
+        from django.conf import settings
+        from pathlib import Path
+
+        index = Path(settings.SPA_DIR) / "index.html"
+        if index.is_file():
+            return HttpResponse(index.read_text(encoding="utf-8"), content_type="text/html")
+
         return HttpResponse(
             """
             <!doctype html>
@@ -334,29 +341,54 @@ class RootView(APIView):
               <head>
                 <meta charset="utf-8" />
                 <meta name="viewport" content="width=device-width, initial-scale=1" />
-                <title>KOBO COLLECT API</title>
-                <style>
-                  body { font-family: Segoe UI, sans-serif; margin: 0; min-height: 100vh;
-                         display: grid; place-items: center; background: #f3f7f5; color: #14261f; }
-                  main { width: min(32rem, calc(100% - 2rem)); background: #fff; border: 1px solid #d5e2db;
-                         border-radius: 18px; padding: 1.5rem; box-shadow: 0 18px 50px rgba(15,61,62,.08); }
-                  h1 { margin: 0 0 .5rem; font-size: 1.6rem; }
-                  p { margin: 0 0 1rem; color: #5d7268; line-height: 1.5; }
-                  a { display: inline-block; background: #0f3d3e; color: #fff; text-decoration: none;
-                      font-weight: 700; padding: .8rem 1rem; border-radius: 12px; }
-                </style>
+                <title>KOBO COLLECT</title>
               </head>
-              <body>
+              <body style="font-family:sans-serif;display:grid;place-items:center;min-height:100vh;margin:0">
                 <main>
-                  <h1>KOBO COLLECT API</h1>
-                  <p>This is the backend API on port 8001. Use the React app on port 8000.</p>
-                  <a href="http://127.0.0.1:8000">Open app at http://127.0.0.1:8000</a>
+                  <h1>KOBO COLLECT</h1>
+                  <p>API is running. Build the frontend into <code>backend/spa</code> to serve the app.</p>
+                  <p><a href="/api/health/">/api/health/</a></p>
                 </main>
               </body>
             </html>
             """,
             content_type="text/html",
         )
+
+
+class SpaView(APIView):
+    """Serve React Router paths from the Vite build (index.html)."""
+
+    permission_classes = [AllowAny]
+
+    def get(self, request, path=""):
+        from django.conf import settings
+        from pathlib import Path
+
+        spa = Path(settings.SPA_DIR)
+        # Prefer real files under spa/ (e.g. assets/, favicon)
+        candidate = (spa / path).resolve() if path else None
+        if (
+            path
+            and candidate
+            and str(candidate).startswith(str(spa.resolve()))
+            and candidate.is_file()
+        ):
+            content_type = "application/octet-stream"
+            if candidate.suffix == ".js":
+                content_type = "application/javascript"
+            elif candidate.suffix == ".css":
+                content_type = "text/css"
+            elif candidate.suffix == ".svg":
+                content_type = "image/svg+xml"
+            elif candidate.suffix in {".png", ".jpg", ".jpeg", ".webp", ".ico"}:
+                content_type = f"image/{candidate.suffix.lstrip('.')}"
+            return HttpResponse(candidate.read_bytes(), content_type=content_type)
+
+        index = spa / "index.html"
+        if index.is_file():
+            return HttpResponse(index.read_text(encoding="utf-8"), content_type="text/html")
+        return HttpResponse("Frontend not built.", status=404, content_type="text/plain")
 
 
 class HealthCheckView(APIView):
